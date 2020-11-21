@@ -12,8 +12,8 @@
  * Turn:
  *   Phase 1: each player single-clicks his driller to enter dart selection mode, and click to select between
  *     1 and 4 darts to use. Double-click when done to enter insertion mode.
- *   Phase 2, insertion: in ascending order of number of darts, each player picks an insertion point in the cluster
- *     and plug his dart there (white border facing the cluster). You can plug the cluster directly, or the dart
+ *   Phase 2, insertion: in ascending order of number of darts, each player picks an insertion point in the board
+ *     and plug his dart there (white face facing). You can plug the board directly, or the dart
  *     of an other player, which will drill one blink deeper in the direction you've chosen.
  *     Drilling will transfer zones to you, in that order, until all points are spent:
  *       - 2 empty zone on front-facing side per dart point
@@ -22,10 +22,18 @@
  *       - 1 other player occupied back-facing side per 4 points
  *     When all players are played, remove then double-click your insertion blink to show how many darts you have remaining.
  *     Then start next turn.
+ * End:
+ *   When all drills are spent, the player with most zones wins.
+ * Reset:
+ *   Link all blinks together and double-click a board blink to reset everything.
  */
 byte boardPart = 1; // board or dart
+byte booting = 1;
+byte wiping = 0;
+unsigned long wipeTime = 0;
+unsigned long bootTime = 0;
 
-byte pendingDG[3];
+byte pendingDG[4];
 byte pendingSendFace = -1;
 unsigned long lastSent = 0; // last sent time
 
@@ -37,20 +45,50 @@ byte color = 0; // 0-2: player color
 byte dartsRemaining = 12;
 byte dartMode = 0; // 0 display remaining 1 picking 2 inserting
 byte dartsPicked = 0;
+// comm debounce
+byte lastMessage[3] = {0,0,0};
+byte lastMessageSent = 0;
 
 const Color colors[] = {OFF, RED, GREEN, BLUE};
 
 const byte P_ACCEPT_DRILL = 0x1;
 const byte P_GOT_DRILL = 0x2;
 const byte P_RESET = 0x3;
+const byte P_WIPE = 0x4;
 
 void setup() {
   // put your setup code here, to run once:
   setValueSentOnAllFaces(P_ACCEPT_DRILL);
+  boardPart = 1;
+  pendingSendFace = -1;
+  dartsRemaining = 12;
+  booting = 1;
+  bootTime = millis();
 }
 
 void displayState()
 {
+  if (wiping)
+  {
+    for (byte f = 0; f < 6; ++f)
+    {
+      setColorOnFace(WHITE, f);
+    }
+    return;
+  }
+  if (booting)
+  {
+    if (millis()-bootTime > 1000)
+      booting = 0;
+    else
+    {
+      for (byte f = 0; f < 6; ++f)
+      {
+        setColorOnFace(WHITE, f);
+      }
+      return;
+    }
+  }
   if (boardPart)
   {
     for (byte f = 0; f < 6; ++f)
@@ -126,42 +164,48 @@ void displayState()
     setColorOnFace(WHITE, pendingSendFace);
 }
 
-void checkDrill(byte face, byte drillColor, byte& drillAmount, byte cost, byte phase2)
+void checkDrill(byte face, byte drillColor, byte* drillAmount, byte cost, byte phase2)
 {
-  if (drillAmount < cost)
+  drillColor += 1;
+  if (*drillAmount < cost)
     return;
   if (boardState[face] == 0)
   {
     boardState[face] = drillColor;
-    drillAmount -= cost;
+    *drillAmount -= cost;
   }
-  else if (phase2 && boardState[face] != drillColor && drillAmount >= cost*2)
+  else if (phase2 && boardState[face] != drillColor && *drillAmount >= cost*2)
   {
     boardState[face] = drillColor;
-    drillAmount -= cost*2;
+    *drillAmount -= cost*2;
   }
 }
 void doDrill(byte face, byte drillColor, byte drillAmount)
 {
   drillAmount *= 2;
-  checkDrill((face+0)%6, drillColor, drillAmount, 1, 0);
-  checkDrill((face+1)%6, drillColor, drillAmount, 1, 0);
-  checkDrill((face+5)%6, drillColor, drillAmount, 1, 0);
-  checkDrill((face+3)%6, drillColor, drillAmount, 2, 0);
-  checkDrill((face+4)%6, drillColor, drillAmount, 2, 0);
-  checkDrill((face+2)%6, drillColor, drillAmount, 2, 0);
-  checkDrill((face+0)%6, drillColor, drillAmount, 1, 1);
-  checkDrill((face+1)%6, drillColor, drillAmount, 1, 1);
-  checkDrill((face+5)%6, drillColor, drillAmount, 1, 1);
-  checkDrill((face+3)%6, drillColor, drillAmount, 2, 1);
-  checkDrill((face+4)%6, drillColor, drillAmount, 2, 1);
-  checkDrill((face+2)%6, drillColor, drillAmount, 2, 1);
+  checkDrill((face+0)%6, drillColor, &drillAmount, 1, 0);
+  checkDrill((face+1)%6, drillColor, &drillAmount, 1, 0);
+  checkDrill((face+5)%6, drillColor, &drillAmount, 1, 0);
+  checkDrill((face+3)%6, drillColor, &drillAmount, 2, 0);
+  checkDrill((face+4)%6, drillColor, &drillAmount, 2, 0);
+  checkDrill((face+2)%6, drillColor, &drillAmount, 2, 0);
+  checkDrill((face+0)%6, drillColor, &drillAmount, 1, 1);
+  checkDrill((face+1)%6, drillColor, &drillAmount, 1, 1);
+  checkDrill((face+5)%6, drillColor, &drillAmount, 1, 1);
+  checkDrill((face+3)%6, drillColor, &drillAmount, 2, 1);
+  checkDrill((face+4)%6, drillColor, &drillAmount, 2, 1);
+  checkDrill((face+2)%6, drillColor, &drillAmount, 2, 1);
 }
 void processDatagram(const byte* data, byte face)
 {
   byte fw1 = data[0];
   byte fw2 = data[1];
   byte drill = data[2];
+  byte idx = data[3];
+  byte col = drill >> 4;
+  if (idx <= lastMessage[col])
+    return;
+  lastMessage[col] = idx;
   if (boardPart)
   {
     if (fw1 == 0xFF && fw2 == 0xFF)
@@ -170,17 +214,19 @@ void processDatagram(const byte* data, byte face)
     }
     else
     {
-      pendingDG[0] = fw2;
+      pendingDG[0] = (fw2 == 0xFF) ? 0xFF : (fw2+face)%6;
       pendingDG[1] = 0xFF;
       pendingDG[2] = drill;
-      pendingSendFace = fw1;
+      pendingDG[3] = idx;
+      pendingSendFace = (fw1+face)%6;
     }
   }
   else
   {
-    pendingDG[0] = (face + 3)%6;
-    pendingDG[1] = fw1;
+    pendingDG[0] = face;
+    pendingDG[1] = (fw1 == 0xFF) ? 0xFF : (fw1+face)%6;
     pendingDG[2] = drill;
+    pendingDG[3] = idx;
     pendingSendFace = 0;
   }
 }
@@ -189,10 +235,10 @@ void doComm()
   if (pendingSendFace != -1)
   {
     byte recv = getLastValueReceivedOnFace(pendingSendFace);
-    if ((recv == P_ACCEPT_DRILL || recv == P_RESET) && millis()-lastSent > 30)
+    if ((recv == P_ACCEPT_DRILL || recv == P_RESET) && millis()-lastSent > 300)
     {
       lastSent = millis();
-      sendDatagramOnFace(pendingDG, 3, pendingSendFace);
+      sendDatagramOnFace(pendingDG, 4, pendingSendFace);
     }
     else if (recv == P_GOT_DRILL)
     {
@@ -203,6 +249,11 @@ void doComm()
   
   for (byte f=0; f<6; ++f)
   {
+    if (getLastValueReceivedOnFace(f) == P_WIPE && millis() - wipeTime > 8000)
+    {
+      wipe();
+      return;
+    }
     if (debouncing[f])
     {
       if (getLastValueReceivedOnFace(f) == P_RESET)
@@ -222,8 +273,22 @@ void doComm()
     }
   }
 }
+void wipe() {
+ setValueSentOnAllFaces(P_WIPE);
+ wipeTime = millis();
+ wiping = 1;
+ for (byte f=0; f<6; ++f)
+   boardState[f] = 0;
+ dartsRemaining = 12;
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
+  if (wiping && millis() - wipeTime > 2000)
+  {
+    wiping = 0;
+    setValueSentOnAllFaces(P_ACCEPT_DRILL);
+  }
   if (buttonLongPressed())
   {
     boardPart = 0;
@@ -243,16 +308,24 @@ void loop() {
     if (dartsPicked > 4)
       dartsPicked = 1;
   }
-  if (buttonDoubleClicked() && !boardPart)
+  if (buttonDoubleClicked())
   {
-    dartMode = (dartMode + 1)%3;
-    if (dartMode == 2)
+    if (!boardPart)
     {
-      pendingDG[0] = 0xFF;
-      pendingDG[1] = 0xFF;
-      pendingDG[2] = (color << 4) + dartsPicked-1;
-      pendingSendFace = 0;
-      dartsRemaining -= dartsPicked;
+      dartMode = (dartMode + 1)%3;
+      if (dartMode == 2)
+      {
+        pendingDG[0] = 0xFF;
+        pendingDG[1] = 0xFF;
+        pendingDG[2] = (color << 4) + (dartsPicked-1);
+        pendingDG[3] = ++lastMessageSent;
+        pendingSendFace = 0;
+        dartsRemaining -= dartsPicked;
+      }
+    }
+    else
+    {
+      wipe();
     }
   }
   displayState();
