@@ -3,7 +3,7 @@
  * 2-3 players, enough blinks
  * 
  * Lore:
- * Each player starts with 12 mining dart, and choses how many to use each turn. Use other people's darts to mine further!
+ * Each player starts with 12 mining drills, and choses how many to use each turn. Use other people's drills to mine further!
  * 
  * Setup:
  *   Set one blink apart per player (the driller), connect remaining blinks together in any shape you want.
