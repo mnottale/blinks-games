@@ -6,24 +6,25 @@
  * Each player starts with 12 mining dart, and choses how many to use each turn. Use other people's darts to mine further!
  * 
  * Setup:
- *   Set one blink apart per player (the insertion blinks).
- *   Long-click it multiple times until it shows your color, one per player.
+ *   Set one blink apart per player (the driller), connect remaining blinks together in any shape you want.
+ *   Long-click your driller  multiple times until it shows your color, one per player.
+ *   Pick a rule for turn order (recomended: first player changes every turn).
  *
  * Turn:
- *   Phase 1: each player single-clicks his driller to enter dart selection mode, and click to select between
- *     1 and 4 darts to use. Double-click when done to enter insertion mode.
- *   Phase 2, insertion: in ascending order of number of darts, each player picks an insertion point in the board
- *     and plug his dart there (white face facing). You can plug the board directly, or the dart
- *     of an other player, which will drill one blink deeper in the direction you've chosen.
- *     Drilling will transfer zones to you, in that order, until all points are spent:
- *       - 2 empty zone on front-facing side per dart point
- *       - 1 empty zone on back-facing side per point
- *       - 1 other-player-occupied front-facing side per 2 points
- *       - 1 other player occupied back-facing side per 4 points
- *     When all players are played, remove then double-click your insertion blink to show how many darts you have remaining.
+ *   Phase 1: each player single-clicks his driller to enter drill selection mode, and click to select between
+ *     1 and 4 drills to use. Double-click when done to enter insertion mode.
+ *   Phase 2, insertion: each player in turn picks an insertion point in the board
+ *     and plug his driller there (white face facing the insertion point). You can plug the board directly, or the driller
+ *     of an other player who already played this turn, which will drill one blink deeper in the direction you've chosen.
+ *     Drilling will transfer zones to you, in that order, until all drills are spent:
+ *       - 2 empty zone on front-facing side per drill
+ *       - 1 empty zone on back-facing side per drill
+ *       - 1 other-player-occupied front-facing side per drill
+ *       - 1 other player occupied back-facing side per 2 drills
+ *     When all players have played, remove then double-click your insertion blink to show how many darts you have remaining.
  *     Then start next turn.
  * End:
- *   When all drills are spent, the player with most zones wins.
+ *   When all drills are spent, the player with most zones in his color wins.
  * Reset:
  *   Link all blinks together and double-click a board blink to reset everything.
  */
