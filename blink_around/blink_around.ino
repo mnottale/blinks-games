@@ -1,4 +1,22 @@
-
+/* AROUND
+ *  
+ *  2-3 players - any number of blinks
+ * 
+ * Stop the spin at the right time to align your colors together!
+ * 
+ * Setup: Connect all blinks together in any shape you want.
+ * Long-press any blink to switch all between two and three players.
+ * All blinks should be spinning. Each player picks a color.
+ * 
+ * Turn: Each player in turn clicks one blink, which will stop spinning.
+ * Faces not connected to any blink will go dark, as well as faces connected
+ * to a stopped blink with mismatched colors.
+ * 
+ * Score: when all blinks are immobile, the player with most lights on wins.
+ * 
+ * Reset: double-click any blink to randomize order and start spinning again.
+ * 
+ */
 byte nColors = 2;
 byte spinning;
 byte offset;
@@ -7,7 +25,8 @@ byte roll[6];
 byte debouncing = 0;
 unsigned long debounceTime = 0;
 
-const unsigned long SPEED = 400;
+const unsigned long SPEED = 400; // milliseconds between each spin
+
 const Color colors[] = {OFF, RED, GREEN, BLUE};
 
 const byte COMM_RESTART = 33;
