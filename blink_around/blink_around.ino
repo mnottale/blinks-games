@@ -128,8 +128,10 @@ void emit() {
   else {
     for (byte f=0; f<6; ++f) {
       setValueSentOnFace(roll[(f+offset)%6], f);
-      if (isValueReceivedOnFaceExpired(f))
+      if (isValueReceivedOnFaceExpired(f)) {
         setColorOnFace(OFF, f);
+        roll[(f+offset)%6] = 0;
+      }
     }
   }
 }
